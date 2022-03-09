@@ -1,0 +1,10 @@
+*
+!*/
+!*.*
+!Makefile
+geninc/
+gensrc/
+obj/
+lib/
+appbin/
+
