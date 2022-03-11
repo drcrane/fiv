@@ -15,6 +15,8 @@ GENOBJECTS=$(patsubst gensrc/%.c,${OBJDIR}%o,${GENSOURCES})
 OBJECTS=${COBJECTS} obj/xdg-shell-protocol.o obj/zxdg-decoration-unstable-v1.o
 LDFLAGS=-Llib/ -l${LIBNAME} -lwayland-client `pkg-config --libs pixman-1 freetype2`
 
+all: appbin/fiv
+
 ${OBJDIR}:
 	mkdir -p ${OBJDIR}
 
