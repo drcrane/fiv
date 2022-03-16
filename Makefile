@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -O2 --std=c11 -Wpedantic -Wall -Iinclude -Igeninc -Isrc `pkg-config --cflags pixman-1 freetype2`
+CFLAGS=-g -O2 -MMD --std=c11 -Wpedantic -Wall -Iinclude -Igeninc -Isrc `pkg-config --cflags pixman-1 freetype2`
 
 # pkg-config --variable=pkgdatadir wayland-protocols
 WAYLAND_PROTOCOLS=/usr/share/wayland-protocols/
@@ -12,10 +12,11 @@ CSOURCES=$(wildcard ${SRCDIR}*.c)
 COBJECTS=$(patsubst ${SRCDIR}%.c,${OBJDIR}%.o,${CSOURCES})
 GENSOURCES=$(wildcard gensrc/*.c)
 GENOBJECTS=$(patsubst gensrc/%.c,${OBJDIR}%o,${GENSOURCES})
+DEPS=$(wildcard $(OBJDIR)*.d)
 OBJECTS=${COBJECTS} obj/xdg-shell-protocol.o obj/zxdg-decoration-unstable-v1.o
 LDFLAGS=-Llib/ -l${LIBNAME} -lwayland-client `pkg-config --libs pixman-1 freetype2`
 
-all: appbin/fiv
+all: appbin/fiv testbin/imageloader_tests
 
 ${OBJDIR}:
 	mkdir -p ${OBJDIR}
@@ -47,16 +48,22 @@ ${OBJDIR}%.o: gensrc/%.c geninc/%.h | ${OBJDIR}
 ${OBJDIR}%.o: ${SRCDIR}%.c geninc/xdg-shell-protocol.h gensrc/xdg-shell-protocol.c geninc/zxdg-decoration-unstable-v1.h gensrc/zxdg-decoration-unstable-v1.c | ${OBJDIR}
 	${CC} -c ${CFLAGS} -o $@ $<
 
+-include $(DEPS)
+
 lib/lib${LIBNAME}.a: ${OBJECTS}
 	ar -rcs $@ ${OBJECTS}
 
 appbin/fiv: appsrc/fiv.c ${LIBDIR}lib${LIBNAME}.a | appbin/
 	${CC} ${CFLAGS} -o $@ $< ${LDFLAGS}
 
+testbin/%: testsrc/%.c | testbin/
+	${CC} ${CFLAGS} -o $@ $< ${LDFLAGS}
+
 clean:
 	rm -f obj/*.o
 	rm -f lib/*.a
 	rm -f appbin/*
+	rm -f testbin/*
 	rm -f gensrc/*.c
 	rm -f geninc/*.h
 

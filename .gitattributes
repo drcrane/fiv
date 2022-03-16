@@ -1,5 +1,5 @@
-*.h	text eol=lf
-*.c	text eol=lf
-*.md	text eol=lf
-Makefile	text eol=lf
+* text=auto
+*.{c,h,md} text eol=lf
+*.png binary
+Makefile text eol=lf
 

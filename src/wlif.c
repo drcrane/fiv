@@ -15,12 +15,15 @@
 
 #include "shm.h"
 #include "wlif.h"
+#include "imageloader.h"
 
 struct wlif_global_context wlif_global_ctx_a;
 struct wlif_global_context * global_ctx = &wlif_global_ctx_a;
 
 struct wlif_window_context wlif_window_ctx_a;
 struct wlif_window_context * window_ctx = &wlif_window_ctx_a;
+
+pixman_image_t * icon;
 
 int wlif_adjustbuffer(struct wlif_window_context * ctx);
 
@@ -176,7 +179,9 @@ int wlif_adjustbuffer(struct wlif_window_context * ctx) {
 				}
 			}
 		}
+		imageloader_render(image, 0,0, icon, imageloader_render_fittype_actual);
 		munmap(buffer, ctx->size);
+		pixman_image_unref(image);
 	}
 	struct wl_buffer * wl_buffer = wl_shm_pool_create_buffer(global_ctx->shm_pool, 0, ctx->width, ctx->height, ctx->stride, WL_SHM_FORMAT_XRGB8888);
 	wl_buffer_add_listener(wl_buffer, &wl_buffer_listener, NULL);
@@ -194,6 +199,12 @@ int wlif_adjustbuffer(struct wlif_window_context * ctx) {
 
 
 int wlif_initialise() {
+	int rc = imageloader_load(&icon, "testdata/image-x-generic.png");
+	if (rc != 0) {
+		fprintf(stderr, "cannot load image\n");
+		return -1;
+	}
+
 	window_ctx->buffer_fd = -1;
 	window_ctx->redraw = NULL;
 	global_ctx->display = wl_display_connect(NULL);
@@ -280,6 +291,7 @@ int wlif_initialise() {
 }
 
 int wlif_dispose() {
+	pixman_image_unref(icon);
 	return 0;
 }
 
