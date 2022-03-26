@@ -142,8 +142,8 @@ static const struct wl_buffer_listener wl_buffer_listener = {
 
 static pixman_image_t * wlif_pixmanimage_create(uint32_t * framebuffer, int width, int height) {
 	pixman_image_t * image;
-	// PIXMAN_a8r8g8b8 like WL_SHM_FORMAT_XRGB8888
-	image = pixman_image_create_bits_no_clear(PIXMAN_a8r8g8b8, width, height, framebuffer, width * 4);
+	// PIXMAN_x8r8g8b8 like WL_SHM_FORMAT_XRGB8888
+	image = pixman_image_create_bits_no_clear(PIXMAN_x8r8g8b8, width, height, framebuffer, width * 4);
 	return image;
 }
 
@@ -173,9 +173,9 @@ int wlif_adjustbuffer(struct wlif_window_context * ctx) {
 		for (int y = 0; y < ctx->height; ++y) {
 			for (int x = 0; x < ctx->width; ++x) {
 				if ((x + y / 8 * 8) % 16 < 8) {
-					buffer[y*ctx->width+x] = 0xFF668866;
+					buffer[y*ctx->width+x] = 0x80668866;
 				} else {
-					buffer[y*ctx->width+x] = 0xFF99BB99;
+					buffer[y*ctx->width+x] = 0x8099BB99;
 				}
 			}
 		}

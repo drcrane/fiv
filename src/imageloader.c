@@ -16,7 +16,7 @@ int imageloader_load(pixman_image_t ** dst, char * filename) {
 	if (rc != 0) {
 		return (int)rc;
 	}
-	image = pixman_image_create_bits_no_clear(PIXMAN_a8r8g8b8, (int)width, (int)height, (uint32_t *)buffer, width * 4);
+	image = pixman_image_create_bits_no_clear(PIXMAN_a8b8g8r8, (int)width, (int)height, (uint32_t *)buffer, width * 4);
 	if (image == NULL) {
 		free(buffer);
 		return -1;
@@ -53,3 +53,4 @@ int imageloader_render(pixman_image_t * dst, int offs_x, int offs_y,
 	}
 	return 1;
 }
+

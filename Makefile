@@ -56,7 +56,7 @@ lib/lib${LIBNAME}.a: ${OBJECTS}
 appbin/fiv: appsrc/fiv.c ${LIBDIR}lib${LIBNAME}.a | appbin/
 	${CC} ${CFLAGS} -o $@ $< ${LDFLAGS}
 
-testbin/%: testsrc/%.c | testbin/
+testbin/%: testsrc/%.c ${LIBDIR}lib${LIBNAME}.a | testbin/
 	${CC} ${CFLAGS} -o $@ $< ${LDFLAGS}
 
 clean:
