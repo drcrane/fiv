@@ -7,6 +7,7 @@
 #include <wayland-client.h>
 #include "xdg-shell-protocol.h"
 #include "zxdg-decoration-unstable-v1.h"
+#include <xkbcommon/xkbcommon.h>
 
 struct wlif_global_context {
 	struct wl_display * display;
@@ -18,6 +19,13 @@ struct wlif_global_context {
 	struct xdg_wm_base * xdg_wm_base;
 	struct xdg_wm_base_listener xdg_wm_base_listener;
 	struct zxdg_decoration_manager_v1 * zxdg_decoration_manager_v1;
+	struct wl_seat * seat;
+	struct wl_seat_listener seat_listener;
+	struct wl_keyboard * keyboard;
+	struct wl_keyboard_listener keyboard_listener;
+	struct xkb_state * xkb_state;
+	struct xkb_context * xkb_context;
+	struct xkb_keymap * xkb_keymap;
 	int terminate;
 };
 

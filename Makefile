@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -O2 -MMD --std=c11 -Wpedantic -Wall -Iinclude -Igeninc -Isrc `pkg-config --cflags pixman-1 freetype2`
+CFLAGS=-g -O2 -MMD --std=c11 -Wpedantic -Wall -Iinclude -Igeninc -Isrc `pkg-config --cflags pixman-1 freetype2 xkbcommon`
 
 # pkg-config --variable=pkgdatadir wayland-protocols
 WAYLAND_PROTOCOLS=/usr/share/wayland-protocols/
@@ -14,7 +14,7 @@ GENSOURCES=$(wildcard gensrc/*.c)
 GENOBJECTS=$(patsubst gensrc/%.c,${OBJDIR}%o,${GENSOURCES})
 DEPS=$(wildcard $(OBJDIR)*.d)
 OBJECTS=${COBJECTS} obj/xdg-shell-protocol.o obj/zxdg-decoration-unstable-v1.o
-LDFLAGS=-Llib/ -l${LIBNAME} -lwayland-client `pkg-config --libs pixman-1 freetype2`
+LDFLAGS=-Llib/ -l${LIBNAME} `pkg-config --libs pixman-1 freetype2 xkbcommon wayland-client`
 
 all: appbin/fiv testbin/imageloader_tests
 

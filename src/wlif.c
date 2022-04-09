@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -12,6 +13,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <time.h>
+//#include <assert.h>
 
 #include "shm.h"
 #include "wlif.h"
@@ -34,6 +36,9 @@ void registry_global_handler(void * data, struct wl_registry * registry, uint32_
 	}
 	if (strcmp(interface, "wl_shm") == 0) {
 		global_ctx->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
+	}
+	if (strcmp(interface, "wl_seat") == 0) {
+		global_ctx->seat = wl_registry_bind(registry, name, &wl_seat_interface, 7);
 	}
 	if (strcmp(interface, "xdg_wm_base") == 0) {
 		global_ctx->xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 2);
@@ -197,6 +202,98 @@ int wlif_adjustbuffer(struct wlif_window_context * ctx) {
 	return new_fd;
 }
 
+// **** KEYBOARD HANDLING
+
+static void wl_keyboard_keymap_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t format, int32_t fd, uint32_t size) {
+	// assert(format == WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1);
+	if (format != WL_KEYBOARD_KEYMAP_FORMAT_XKB_V1) {
+		fprintf(stderr, "unexpected keymap format %u\n", format);
+		exit(1);
+	}
+	char * map_shm = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
+	// assert(map_shm != MAP_FAILED);
+	if (map_shm == MAP_FAILED) { fprintf(stderr, "keymap memory mapping failed\n"); exit(1); }
+	struct xkb_keymap * xkb_keymap = xkb_keymap_new_from_string(global_ctx->xkb_context, map_shm,
+			XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
+	munmap(map_shm, size);
+	close(fd);
+
+	struct xkb_state * xkb_state = xkb_state_new(xkb_keymap);
+	xkb_keymap_unref(global_ctx->xkb_keymap);
+	xkb_state_unref(global_ctx->xkb_state);
+	global_ctx->xkb_keymap = xkb_keymap;
+	global_ctx->xkb_state = xkb_state;
+}
+
+static void wl_keyboard_enter_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t serial, struct wl_surface * wl_surface, struct wl_array * keys) {
+	fprintf(stdout, "keyboard enter, keys pressed:\n");
+	uint32_t * key;
+	wl_array_for_each(key, keys) {
+		char buf[128];
+		xkb_keysym_t sym = xkb_state_key_get_one_sym(global_ctx->xkb_state, *key + 8);
+		xkb_keysym_get_name(sym, buf, sizeof(buf));
+		fprintf(stdout, "sym: %-12s (%d), ", buf, sym);
+		xkb_state_key_get_utf8(global_ctx->xkb_state, *key + 8, buf, sizeof(buf));
+		if (buf[0] == '\r' || buf[0] == '\n') { strcpy(buf, "."); }
+		fprintf(stdout, "utf8: '%s'\n", buf);
+	}
+}
+
+static void wl_keyboard_key_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
+	char buf[128];
+	uint32_t keycode = key + 8;
+	xkb_keysym_t sym = xkb_state_key_get_one_sym(global_ctx->xkb_state, keycode);
+	xkb_keysym_get_name(sym, buf, sizeof(buf));
+	const char * action = state == WL_KEYBOARD_KEY_STATE_PRESSED ? "press" : "release";
+	fprintf(stdout, "key %s: sym: %-12s (%d), ", action, buf, sym);
+	xkb_state_key_get_utf8(global_ctx->xkb_state, keycode, buf, sizeof(buf));
+	if (buf[0] == '\r' || buf[0] == '\n') { strcpy(buf, "."); }
+	fprintf(stdout, "utf8: '%s'\n", buf);
+}
+
+static void wl_keyboard_leave_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t serial, struct wl_surface * wl_surface) {
+	fprintf(stdout, "keyboard leave\n");
+}
+
+static void wl_keyboard_modifiers_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t serial,
+		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
+	xkb_state_update_mask(global_ctx->xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+}
+
+static void wl_keyboard_repeat_info_handler(void * data, struct wl_keyboard * wl_keyboard, int32_t rate, int32_t delay) {
+	/* TODO: left as an exercise for the reader */
+}
+
+void wl_seat_capabilities_handler(void * data, struct wl_seat * wl_seat, uint32_t capabilities) {
+	// WL_SEAT_CAPABILITY_POINTER WL_SEAT_CAPABILITY_KEYBOARD WL_SEAT_CAPABILITY_TOUCH
+	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
+		fprintf(stdout, "cap: POINTER\n");
+	}
+
+	bool have_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD ? 1 : 0;
+	if (have_keyboard && global_ctx->keyboard == NULL) {
+		fprintf(stdout, "cap: KEYBOARD\n");
+		global_ctx->keyboard = wl_seat_get_keyboard(wl_seat);
+		global_ctx->keyboard_listener.keymap = &wl_keyboard_keymap_handler;
+		global_ctx->keyboard_listener.enter = &wl_keyboard_enter_handler;
+		global_ctx->keyboard_listener.leave = &wl_keyboard_leave_handler;
+		global_ctx->keyboard_listener.key = &wl_keyboard_key_handler;
+		global_ctx->keyboard_listener.modifiers = &wl_keyboard_modifiers_handler;
+		global_ctx->keyboard_listener.repeat_info = &wl_keyboard_repeat_info_handler;
+		wl_keyboard_add_listener(global_ctx->keyboard, &global_ctx->keyboard_listener, NULL);
+	} else
+	if (!have_keyboard && global_ctx->keyboard != NULL) {
+		wl_keyboard_release(global_ctx->keyboard);
+		global_ctx->keyboard = NULL;
+	}
+	if (capabilities & WL_SEAT_CAPABILITY_TOUCH) {
+		fprintf(stdout, "cap: TOUCH\n");
+	}
+}
+
+void wl_seat_name_handler(void * data, struct wl_seat * wl_seat, const char * name) {
+	fprintf(stdout, "seat name: %s\n", name);
+}
 
 int wlif_initialise() {
 	int rc = imageloader_load(&icon, "testdata/image-x-generic.png");
@@ -227,9 +324,15 @@ int wlif_initialise() {
 	fprintf(stdout, "shm %p\n", (void *)global_ctx->shm);
 	fprintf(stdout, "xdg_wm_base %p\n", (void *)global_ctx->xdg_wm_base);
 	fprintf(stdout, "zxdg_decoration_manager_v1 %p\n", (void *)global_ctx->zxdg_decoration_manager_v1);
+	fprintf(stdout, "seat %p\n", (void *)global_ctx->seat);
 
 	if (!(global_ctx->compositor && global_ctx->shm && global_ctx->xdg_wm_base)) {
 		fprintf(stderr, "could not get compositor, shm and/or xdg_wm_base from registry\n");
+		return -1;
+	}
+
+	if (!(global_ctx->seat)) {
+		fprintf(stderr, "could not get seat\n");
 		return -1;
 	}
 
@@ -285,7 +388,13 @@ int wlif_initialise() {
 	//window_ctx->zxdg_decoration_manager_v1 = zxdg_decoration_manager_v1_get_toplevel_decoration(global_ctx->);
 	window_ctx->zxdg_toplevel_decoration_v1 = zxdg_decoration_manager_v1_get_toplevel_decoration(global_ctx->zxdg_decoration_manager_v1, window_ctx->xdg_toplevel);
 
+	global_ctx->seat_listener.capabilities = &wl_seat_capabilities_handler;
+	global_ctx->seat_listener.name = &wl_seat_name_handler;
+	wl_seat_add_listener(global_ctx->seat, &global_ctx->seat_listener, NULL);
+
 	//xdg_surface_set_window_geometry(window_ctx->xdg_surface, 0, 0, 200, 200);
+
+	global_ctx->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 
 	return 0;
 }
