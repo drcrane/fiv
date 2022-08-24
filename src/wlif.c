@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <time.h>
 //#include <assert.h>
+#include <linux/input-event-codes.h>
 
 #include "shm.h"
 #include "wlif.h"
@@ -202,6 +203,44 @@ int wlif_adjustbuffer(struct wlif_window_context * ctx) {
 	return new_fd;
 }
 
+// **** POINTER HANDLING
+
+static void wl_pointer_enter_handler(void * data, struct wl_pointer * wl_pointer, uint32_t serial, struct wl_surface * wl_surface, wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	fprintf(stdout, "pointer_enter\n");
+}
+
+static void wl_pointer_leave_handler(void * data, struct wl_pointer * wl_pointer, uint32_t serial, struct wl_surface * wl_surface) {
+	fprintf(stdout, "pointer_leave\n");
+}
+
+static void wl_pointer_motion_handler(void * data, struct wl_pointer * wl_pointer, uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
+	//
+}
+
+static void wl_pointer_button_handler(void * data, struct wl_pointer * wl_pointer, uint32_t serial, uint32_t time, uint32_t button, uint32_t state) {
+	//
+}
+
+static void wl_pointer_axis_handler(void * data, struct wl_pointer * wl_pointer, uint32_t time, uint32_t axis, wl_fixed_t value) {
+	//
+}
+
+static void wl_pointer_frame_handler(void * data, struct wl_pointer * wl_pointer) {
+	fprintf(stdout, "pointer_frame\n");
+}
+
+static void wl_pointer_axis_source_handler(void * data, struct wl_pointer * wl_pointer, uint32_t axis_source) {
+	//
+}
+
+static void wl_pointer_axis_stop_handler(void * data, struct wl_pointer * wl_pointer, uint32_t time, uint32_t axis) {
+	//
+}
+
+static void wl_pointer_axis_discrete_handler(void * data, struct wl_pointer * wl_pointer, uint32_t axis, int32_t discrete) {
+	//
+}
+
 // **** KEYBOARD HANDLING
 
 static void wl_keyboard_keymap_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t format, int32_t fd, uint32_t size) {
@@ -264,10 +303,52 @@ static void wl_keyboard_repeat_info_handler(void * data, struct wl_keyboard * wl
 	/* TODO: left as an exercise for the reader */
 }
 
+// **** TOUCH HANDLING
+
+static void wl_touch_down_handler(void * data, struct wl_touch * wl_touch, uint32_t serial, uint32_t time, struct wl_surface * wl_surface, int32_t id, wl_fixed_t x, wl_fixed_t y) {
+	//
+}
+
+static void wl_touch_up_handler(void * data, struct wl_touch * wl_touch, uint32_t serial, uint32_t time, int32_t id) {
+
+}
+
+static void wl_touch_motion_handler(void * data, struct wl_touch * wl_touch, uint32_t time, int32_t id, wl_fixed_t x, wl_fixed_t y) {
+
+}
+
+static void wl_touch_frame_handler(void * data, struct wl_touch * wl_touch) {
+
+}
+
+static void wl_touch_cancel_handler(void * data, struct wl_touch * wl_touch) {
+
+}
+
+static void wl_touch_shape_handler(void * data, struct wl_touch * wl_touch, int32_t id, wl_fixed_t major, wl_fixed_t minor) {
+
+}
+
+static void wl_touch_orientation_handler(void * data, struct wl_touch * wl_touch, int32_t id, wl_fixed_t orientation) {
+
+}
+
 void wl_seat_capabilities_handler(void * data, struct wl_seat * wl_seat, uint32_t capabilities) {
 	// WL_SEAT_CAPABILITY_POINTER WL_SEAT_CAPABILITY_KEYBOARD WL_SEAT_CAPABILITY_TOUCH
-	if (capabilities & WL_SEAT_CAPABILITY_POINTER) {
+	bool have_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
+	if (have_pointer && global_ctx->pointer == NULL) {
 		fprintf(stdout, "cap: POINTER\n");
+		global_ctx->pointer = wl_seat_get_pointer(wl_seat);
+		global_ctx->pointer_listener.enter = &wl_pointer_enter_handler;
+		global_ctx->pointer_listener.leave = &wl_pointer_leave_handler;
+		global_ctx->pointer_listener.motion = &wl_pointer_motion_handler;
+		global_ctx->pointer_listener.button = &wl_pointer_button_handler;
+		global_ctx->pointer_listener.axis = &wl_pointer_axis_handler;
+		global_ctx->pointer_listener.frame = &wl_pointer_frame_handler;
+		global_ctx->pointer_listener.axis_source = &wl_pointer_axis_source_handler;
+		global_ctx->pointer_listener.axis_stop = &wl_pointer_axis_stop_handler;
+		global_ctx->pointer_listener.axis_discrete = &wl_pointer_axis_discrete_handler;
+		wl_pointer_add_listener(global_ctx->pointer, &global_ctx->pointer_listener, NULL);
 	}
 
 	bool have_keyboard = capabilities & WL_SEAT_CAPABILITY_KEYBOARD ? 1 : 0;
@@ -286,8 +367,19 @@ void wl_seat_capabilities_handler(void * data, struct wl_seat * wl_seat, uint32_
 		wl_keyboard_release(global_ctx->keyboard);
 		global_ctx->keyboard = NULL;
 	}
-	if (capabilities & WL_SEAT_CAPABILITY_TOUCH) {
+
+	bool have_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
+	if (have_touch && global_ctx->touch == NULL) {
 		fprintf(stdout, "cap: TOUCH\n");
+		global_ctx->touch = wl_seat_get_touch(wl_seat);
+		global_ctx->touch_listener.down = &wl_touch_down_handler;
+		global_ctx->touch_listener.up = &wl_touch_up_handler;
+		global_ctx->touch_listener.motion = &wl_touch_motion_handler;
+		global_ctx->touch_listener.frame = &wl_touch_frame_handler;
+		global_ctx->touch_listener.cancel = &wl_touch_cancel_handler;
+		global_ctx->touch_listener.shape = &wl_touch_shape_handler;
+		global_ctx->touch_listener.orientation = &wl_touch_orientation_handler;
+		wl_touch_add_listener(global_ctx->touch, &global_ctx->touch_listener, NULL);
 	}
 }
 

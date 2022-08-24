@@ -21,6 +21,10 @@ struct wlif_global_context {
 	struct zxdg_decoration_manager_v1 * zxdg_decoration_manager_v1;
 	struct wl_seat * seat;
 	struct wl_seat_listener seat_listener;
+	struct wl_pointer * pointer;
+	struct wl_pointer_listener pointer_listener;
+	struct wl_touch * touch;
+	struct wl_touch_listener touch_listener;
 	struct wl_keyboard * keyboard;
 	struct wl_keyboard_listener keyboard_listener;
 	struct xkb_state * xkb_state;
