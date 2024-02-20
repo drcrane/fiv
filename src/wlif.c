@@ -265,7 +265,7 @@ static void wl_keyboard_keymap_handler(void * data, struct wl_keyboard * wl_keyb
 	}
 	char * map_shm = mmap(NULL, size, PROT_READ, MAP_SHARED, fd, 0);
 	// assert(map_shm != MAP_FAILED);
-	if (map_shm == MAP_FAILED) { fprintf(stderr, "keymap memory mapping failed\n"); exit(1); }
+	if (map_shm == MAP_FAILED) { fprintf(stderr, "keymap memory mapping failed\n"); goto error; }
 	struct xkb_keymap * xkb_keymap = xkb_keymap_new_from_string(global_ctx->xkb_context, map_shm,
 			XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
 	munmap(map_shm, size);
@@ -276,32 +276,41 @@ static void wl_keyboard_keymap_handler(void * data, struct wl_keyboard * wl_keyb
 	xkb_state_unref(global_ctx->xkb_state);
 	global_ctx->xkb_keymap = xkb_keymap;
 	global_ctx->xkb_state = xkb_state;
+	return;
+error:
+	close(fd);
 }
 
 static void wl_keyboard_enter_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t serial, struct wl_surface * wl_surface, struct wl_array * keys) {
-	fprintf(stdout, "keyboard enter, keys pressed:\n");
-	uint32_t * key;
-	wl_array_for_each(key, keys) {
-		char buf[128];
-		xkb_keysym_t sym = xkb_state_key_get_one_sym(global_ctx->xkb_state, *key + 8);
-		xkb_keysym_get_name(sym, buf, sizeof(buf));
-		fprintf(stdout, "sym: %-12s (%d), ", buf, sym);
-		xkb_state_key_get_utf8(global_ctx->xkb_state, *key + 8, buf, sizeof(buf));
-		if (buf[0] == '\r' || buf[0] == '\n') { strcpy(buf, "."); }
-		fprintf(stdout, "utf8: '%s'\n", buf);
+	if (global_ctx->xkb_state) {
+		fprintf(stdout, "keyboard enter, keys pressed:\n");
+		uint32_t * key;
+		wl_array_for_each(key, keys) {
+			char buf[128];
+			xkb_keysym_t sym = xkb_state_key_get_one_sym(global_ctx->xkb_state, *key + 8);
+			xkb_keysym_get_name(sym, buf, sizeof(buf));
+			fprintf(stdout, "sym: %-12s (%d), ", buf, sym);
+			xkb_state_key_get_utf8(global_ctx->xkb_state, *key + 8, buf, sizeof(buf));
+			if (buf[0] == '\r' || buf[0] == '\n') { strcpy(buf, "."); }
+			fprintf(stdout, "utf8: '%s'\n", buf);
+		}
 	}
 }
 
 static void wl_keyboard_key_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
-	char buf[128];
-	uint32_t keycode = key + 8;
-	xkb_keysym_t sym = xkb_state_key_get_one_sym(global_ctx->xkb_state, keycode);
-	xkb_keysym_get_name(sym, buf, sizeof(buf));
-	const char * action = state == WL_KEYBOARD_KEY_STATE_PRESSED ? "press" : "release";
-	fprintf(stdout, "key %s: sym: %-12s (%d), ", action, buf, sym);
-	xkb_state_key_get_utf8(global_ctx->xkb_state, keycode, buf, sizeof(buf));
-	if (buf[0] == '\r' || buf[0] == '\n') { strcpy(buf, "."); }
-	fprintf(stdout, "utf8: '%s'\n", buf);
+	if (global_ctx->xkb_state) {
+		char buf[128];
+		uint32_t keycode = key + 8;
+		xkb_keysym_t sym = xkb_state_key_get_one_sym(global_ctx->xkb_state, keycode);
+		xkb_keysym_get_name(sym, buf, sizeof(buf));
+		const char * action = state == WL_KEYBOARD_KEY_STATE_PRESSED ? "press" : "release";
+		fprintf(stdout, "key %s: sym: %-12s (%d), ", action, buf, sym);
+		xkb_state_key_get_utf8(global_ctx->xkb_state, keycode, buf, sizeof(buf));
+		if (buf[0] == '\r' || buf[0] == '\n') { strcpy(buf, "."); }
+		fprintf(stdout, "utf8: '%s'\n", buf);
+	} else {
+		fprintf(stdout, "new key scancode %d\n", key);
+	}
 }
 
 static void wl_keyboard_leave_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t serial, struct wl_surface * wl_surface) {
@@ -310,7 +319,9 @@ static void wl_keyboard_leave_handler(void * data, struct wl_keyboard * wl_keybo
 
 static void wl_keyboard_modifiers_handler(void * data, struct wl_keyboard * wl_keyboard, uint32_t serial,
 		uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
-	xkb_state_update_mask(global_ctx->xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+	if (global_ctx->xkb_state) {
+		xkb_state_update_mask(global_ctx->xkb_state, mods_depressed, mods_latched, mods_locked, 0, 0, group);
+	}
 }
 
 static void wl_keyboard_repeat_info_handler(void * data, struct wl_keyboard * wl_keyboard, int32_t rate, int32_t delay) {
@@ -507,7 +518,6 @@ int wlif_initialise() {
 	global_ctx->seat_listener.name = &wl_seat_name_handler;
 
 	{
-		fprintf(stdout, "Number of Seats %d\n", wl_list_length(&global_ctx->seats));
 		seat = NULL;
 		wl_list_for_each(ele, &global_ctx->seats, element_header) {
 			seat = (struct wl_seat *)ele->element;
