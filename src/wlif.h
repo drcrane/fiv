@@ -19,7 +19,7 @@ struct wlif_global_context {
 	struct xdg_wm_base * xdg_wm_base;
 	struct xdg_wm_base_listener xdg_wm_base_listener;
 	struct zxdg_decoration_manager_v1 * zxdg_decoration_manager_v1;
-	struct wl_seat * seat;
+	struct wl_list seats;
 	struct wl_seat_listener seat_listener;
 	struct wl_pointer * pointer;
 	struct wl_pointer_listener pointer_listener;

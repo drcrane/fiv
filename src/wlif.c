@@ -26,6 +26,11 @@ struct wlif_global_context * global_ctx = &wlif_global_ctx_a;
 struct wlif_window_context wlif_window_ctx_a;
 struct wlif_window_context * window_ctx = &wlif_window_ctx_a;
 
+struct wlif_ptr_element {
+	struct wl_list element_header;
+	void * element;
+};
+
 pixman_image_t * icon;
 
 int wlif_adjustbuffer(struct wlif_window_context * ctx);
@@ -39,7 +44,11 @@ void registry_global_handler(void * data, struct wl_registry * registry, uint32_
 		global_ctx->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 	}
 	if (strcmp(interface, "wl_seat") == 0) {
-		global_ctx->seat = wl_registry_bind(registry, name, &wl_seat_interface, 7);
+		struct wl_seat * seat;
+		seat = wl_registry_bind(registry, name, &wl_seat_interface, 7);
+		struct wlif_ptr_element * ele = malloc(sizeof(struct wlif_ptr_element));
+		ele->element = seat;
+		wl_list_insert(&global_ctx->seats, &ele->element_header);
 	}
 	if (strcmp(interface, "xdg_wm_base") == 0) {
 		global_ctx->xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 2);
@@ -72,6 +81,7 @@ void xdg_toplevel_configure_handler(void * data, struct xdg_toplevel * xdg_tople
 	bool is_tiled_top = false;
 	bool is_tiled_bottom = false;
 	bool is_resizing = false;
+	bool is_suspended = false;
 
 	enum xdg_toplevel_state *state;
 	wl_array_for_each(state, states) {
@@ -84,6 +94,7 @@ void xdg_toplevel_configure_handler(void * data, struct xdg_toplevel * xdg_tople
 			case XDG_TOPLEVEL_STATE_TILED_TOP:    is_tiled_top = true; break;
 			case XDG_TOPLEVEL_STATE_TILED_BOTTOM: is_tiled_bottom = true; break;
 			case XDG_TOPLEVEL_STATE_RESIZING:     is_resizing = true; break;
+			case XDG_TOPLEVEL_STATE_SUSPENDED:    is_suspended = true; break;
 		}
 	}
 
@@ -110,6 +121,9 @@ void xdg_toplevel_configure_handler(void * data, struct xdg_toplevel * xdg_tople
 	}
 	if (is_resizing) {
 		fprintf(stdout, "is_resizing\n");
+	}
+	if (is_suspended) {
+		fprintf(stdout, "is_suspended\n");
 	}
 
 	printf("toplevel_configure: %dx%d\n", width, height);
@@ -366,6 +380,7 @@ void wl_seat_capabilities_handler(void * data, struct wl_seat * wl_seat, uint32_
 	if (!have_keyboard && global_ctx->keyboard != NULL) {
 		wl_keyboard_release(global_ctx->keyboard);
 		global_ctx->keyboard = NULL;
+		fprintf(stdout, "cap: KEYBOARD (GONE)\n");
 	}
 
 	bool have_touch = capabilities & WL_SEAT_CAPABILITY_TOUCH;
@@ -396,6 +411,7 @@ int wlif_initialise() {
 
 	window_ctx->buffer_fd = -1;
 	window_ctx->redraw = NULL;
+	wl_list_init(&global_ctx->seats);
 	global_ctx->display = wl_display_connect(NULL);
 	if (!global_ctx->display) {
 		fprintf(stderr, "wl_display_connect() failed\n");
@@ -416,14 +432,19 @@ int wlif_initialise() {
 	fprintf(stdout, "shm %p\n", (void *)global_ctx->shm);
 	fprintf(stdout, "xdg_wm_base %p\n", (void *)global_ctx->xdg_wm_base);
 	fprintf(stdout, "zxdg_decoration_manager_v1 %p\n", (void *)global_ctx->zxdg_decoration_manager_v1);
-	fprintf(stdout, "seat %p\n", (void *)global_ctx->seat);
+	struct wlif_ptr_element * ele;
+	struct wl_seat * seat = NULL;
+	wl_list_for_each (ele, &global_ctx->seats, element_header) {
+		seat = (struct wl_seat *)ele->element;
+		fprintf(stdout, "seat %p\n", (void *)seat);
+	}
 
 	if (!(global_ctx->compositor && global_ctx->shm && global_ctx->xdg_wm_base)) {
 		fprintf(stderr, "could not get compositor, shm and/or xdg_wm_base from registry\n");
 		return -1;
 	}
 
-	if (!(global_ctx->seat)) {
+	if (wl_list_length(&global_ctx->seats) == 0) {
 		fprintf(stderr, "could not get seat\n");
 		return -1;
 	}
@@ -482,7 +503,20 @@ int wlif_initialise() {
 
 	global_ctx->seat_listener.capabilities = &wl_seat_capabilities_handler;
 	global_ctx->seat_listener.name = &wl_seat_name_handler;
-	wl_seat_add_listener(global_ctx->seat, &global_ctx->seat_listener, NULL);
+
+	{
+		fprintf(stdout, "Number of Seats %d\n", wl_list_length(&global_ctx->seats));
+		seat = NULL;
+		wl_list_for_each(ele, &global_ctx->seats, element_header) {
+			seat = (struct wl_seat *)ele->element;
+			break;
+		}
+		if (seat == NULL) {
+			fprintf(stderr, "no seat!\n");
+		} else {
+			wl_seat_add_listener(seat, &global_ctx->seat_listener, NULL);
+		}
+	}
 
 	//xdg_surface_set_window_geometry(window_ctx->xdg_surface, 0, 0, 200, 200);
 

@@ -18,6 +18,12 @@ LDFLAGS=-Llib/ -l${LIBNAME} `pkg-config --libs pixman-1 freetype2 xkbcommon wayl
 
 all: appbin/fiv testbin/imageloader_tests
 
+geninc/:
+	mkdir -p geninc/
+
+gensrc/:
+	mkdir -p gensrc/
+
 ${OBJDIR}:
 	mkdir -p ${OBJDIR}
 
@@ -30,16 +36,16 @@ appbin/:
 testbin/:
 	mkdir -p testbin/
 
-gensrc/xdg-shell-protocol.c: ${WAYLAND_PROTOCOLS}stable/xdg-shell/xdg-shell.xml
+gensrc/xdg-shell-protocol.c: ${WAYLAND_PROTOCOLS}stable/xdg-shell/xdg-shell.xml | gensrc/
 	wayland-scanner private-code $< $@
 
-geninc/xdg-shell-protocol.h: ${WAYLAND_PROTOCOLS}stable/xdg-shell/xdg-shell.xml
+geninc/xdg-shell-protocol.h: ${WAYLAND_PROTOCOLS}stable/xdg-shell/xdg-shell.xml | geninc/
 	wayland-scanner client-header $< $@
 
-gensrc/zxdg-decoration-unstable-v1.c: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml
+gensrc/zxdg-decoration-unstable-v1.c: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml | gensrc/
 	wayland-scanner private-code $< $@
 
-geninc/zxdg-decoration-unstable-v1.h: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml
+geninc/zxdg-decoration-unstable-v1.h: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml | geninc/
 	wayland-scanner client-header $< $@
 
 ${OBJDIR}%.o: gensrc/%.c geninc/%.h | ${OBJDIR}
@@ -50,7 +56,7 @@ ${OBJDIR}%.o: ${SRCDIR}%.c geninc/xdg-shell-protocol.h gensrc/xdg-shell-protocol
 
 -include $(DEPS)
 
-lib/lib${LIBNAME}.a: ${OBJECTS}
+lib/lib${LIBNAME}.a: ${OBJECTS} | ${LIBDIR}
 	ar -rcs $@ ${OBJECTS}
 
 appbin/fiv: appsrc/fiv.c ${LIBDIR}lib${LIBNAME}.a | appbin/
