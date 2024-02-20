@@ -498,8 +498,10 @@ int wlif_initialise() {
 	window_ctx->xdg_toplevel_listener.close = xdg_toplevel_close_handler;
 	xdg_toplevel_add_listener(window_ctx->xdg_toplevel, &window_ctx->xdg_toplevel_listener, NULL);
 
-	//window_ctx->zxdg_decoration_manager_v1 = zxdg_decoration_manager_v1_get_toplevel_decoration(global_ctx->);
-	window_ctx->zxdg_toplevel_decoration_v1 = zxdg_decoration_manager_v1_get_toplevel_decoration(global_ctx->zxdg_decoration_manager_v1, window_ctx->xdg_toplevel);
+	// CSD/SSD stuff
+	if (global_ctx->zxdg_decoration_manager_v1) {
+		window_ctx->zxdg_toplevel_decoration_v1 = zxdg_decoration_manager_v1_get_toplevel_decoration(global_ctx->zxdg_decoration_manager_v1, window_ctx->xdg_toplevel);
+	}
 
 	global_ctx->seat_listener.capabilities = &wl_seat_capabilities_handler;
 	global_ctx->seat_listener.name = &wl_seat_name_handler;
