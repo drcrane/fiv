@@ -5,8 +5,8 @@
 #include <stddef.h>
 #include <pixman.h>
 #include <wayland-client.h>
-#include "xdg-shell-protocol.h"
-#include "zxdg-decoration-unstable-v1.h"
+#include "xdg-shell-client-protocol.h"
+#include "xdg-decoration-unstable-v1-client-protocol.h"
 #include <xkbcommon/xkbcommon.h>
 
 struct wlif_global_context {
@@ -30,6 +30,7 @@ struct wlif_global_context {
 	struct xkb_state * xkb_state;
 	struct xkb_context * xkb_context;
 	struct xkb_keymap * xkb_keymap;
+	struct wl_list * outputs;
 	int terminate;
 };
 

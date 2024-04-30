@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -O2 -MMD --std=c11 -Wpedantic -Wall -Iinclude -Igeninc -Isrc `pkg-config --cflags pixman-1 freetype2 xkbcommon`
+CFLAGS=-g -O2 -MMD --std=c11 -Wpedantic -Wall -Iinclude -Igeninc -Isrc `pkg-config --cflags pixman-1 freetype2 xkbcommon wayland-client`
 
 # pkg-config --variable=pkgdatadir wayland-protocols
 WAYLAND_PROTOCOLS=/usr/share/wayland-protocols/
@@ -13,7 +13,7 @@ COBJECTS=$(patsubst ${SRCDIR}%.c,${OBJDIR}%.o,${CSOURCES})
 GENSOURCES=$(wildcard gensrc/*.c)
 GENOBJECTS=$(patsubst gensrc/%.c,${OBJDIR}%o,${GENSOURCES})
 DEPS=$(wildcard $(OBJDIR)*.d)
-OBJECTS=${COBJECTS} obj/xdg-shell-protocol.o obj/zxdg-decoration-unstable-v1.o
+OBJECTS=${COBJECTS} obj/xdg-shell-protocol.o obj/xdg-decoration-unstable-v1-protocol.o
 LDFLAGS=-Llib/ -l${LIBNAME} `pkg-config --libs pixman-1 freetype2 xkbcommon wayland-client`
 
 all: appbin/fiv testbin/imageloader_tests
@@ -39,19 +39,19 @@ testbin/:
 gensrc/xdg-shell-protocol.c: ${WAYLAND_PROTOCOLS}stable/xdg-shell/xdg-shell.xml | gensrc/
 	wayland-scanner private-code $< $@
 
-geninc/xdg-shell-protocol.h: ${WAYLAND_PROTOCOLS}stable/xdg-shell/xdg-shell.xml | geninc/
+geninc/xdg-shell-client-protocol.h: ${WAYLAND_PROTOCOLS}stable/xdg-shell/xdg-shell.xml | geninc/
 	wayland-scanner client-header $< $@
 
-gensrc/zxdg-decoration-unstable-v1.c: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml | gensrc/
+gensrc/xdg-decoration-unstable-v1-protocol.c: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml | gensrc/
 	wayland-scanner private-code $< $@
 
-geninc/zxdg-decoration-unstable-v1.h: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml | geninc/
+geninc/xdg-decoration-unstable-v1-client-protocol.h: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml | geninc/
 	wayland-scanner client-header $< $@
 
-${OBJDIR}%.o: gensrc/%.c geninc/%.h | ${OBJDIR}
+${OBJDIR}%.o: gensrc/%.c geninc/xdg-shell-client-protocol.h geninc/xdg-decoration-unstable-v1-client-protocol.h | ${OBJDIR}
 	${CC} -c ${CFLAGS} -o $@ $<
 
-${OBJDIR}%.o: ${SRCDIR}%.c geninc/xdg-shell-protocol.h gensrc/xdg-shell-protocol.c geninc/zxdg-decoration-unstable-v1.h gensrc/zxdg-decoration-unstable-v1.c | ${OBJDIR}
+${OBJDIR}%.o: ${SRCDIR}%.c geninc/xdg-shell-client-protocol.h gensrc/xdg-shell-protocol.c geninc/xdg-decoration-unstable-v1-client-protocol.h gensrc/xdg-decoration-unstable-v1-protocol.c | ${OBJDIR}
 	${CC} -c ${CFLAGS} -o $@ $<
 
 -include $(DEPS)
@@ -67,6 +67,7 @@ testbin/%: testsrc/%.c ${LIBDIR}lib${LIBNAME}.a | testbin/
 
 clean:
 	rm -f obj/*.o
+	rm -f obj/*.d
 	rm -f lib/*.a
 	rm -f appbin/*
 	rm -f testbin/*

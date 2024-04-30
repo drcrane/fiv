@@ -40,20 +40,22 @@ void registry_global_handler(void * data, struct wl_registry * registry, uint32_
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		global_ctx->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 3);
 	}
-	if (strcmp(interface, "wl_shm") == 0) {
+	if (strcmp(interface, wl_shm_interface.name) == 0) {
 		global_ctx->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 	}
-	if (strcmp(interface, "wl_seat") == 0) {
+	if (strcmp(interface, wl_seat_interface.name) == 0) {
 		struct wl_seat * seat;
 		seat = wl_registry_bind(registry, name, &wl_seat_interface, 7);
 		struct wlif_ptr_element * ele = malloc(sizeof(struct wlif_ptr_element));
 		ele->element = seat;
 		wl_list_insert(&global_ctx->seats, &ele->element_header);
 	}
-	if (strcmp(interface, "xdg_wm_base") == 0) {
+	if (strcmp(interface, wl_output_interface.name) == 0) {
+	}
+	if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
 		global_ctx->xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 2);
 	}
-	if (strcmp(interface, "zxdg_decoration_manager_v1") == 0) {
+	if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0) {
 		global_ctx->zxdg_decoration_manager_v1 = wl_registry_bind(registry, name, &zxdg_decoration_manager_v1_interface, 1);
 	}
 }
@@ -304,7 +306,7 @@ static void wl_keyboard_key_handler(void * data, struct wl_keyboard * wl_keyboar
 		xkb_keysym_t sym = xkb_state_key_get_one_sym(global_ctx->xkb_state, keycode);
 		xkb_keysym_get_name(sym, buf, sizeof(buf));
 		const char * action = state == WL_KEYBOARD_KEY_STATE_PRESSED ? "press" : "release";
-		fprintf(stdout, "key %s: sym: %-12s (%d), ", action, buf, sym);
+		fprintf(stdout, "scancode %x - key %s: sym: %-12s (%d), ", key, action, buf, sym);
 		xkb_state_key_get_utf8(global_ctx->xkb_state, keycode, buf, sizeof(buf));
 		if (buf[0] == '\r' || buf[0] == '\n') { strcpy(buf, "."); }
 		fprintf(stdout, "utf8: '%s'\n", buf);
