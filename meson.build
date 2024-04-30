@@ -8,8 +8,9 @@ wl_scanner_prog = find_program(wl_scanner.get_variable('wayland_scanner'))
 wl_protocol_dep = dependency('wayland-protocols', version : '>= 1.24')
 wl_protocol_dep_dir_base = wl_protocol_dep.get_variable('pkgdatadir')
 
+# xdg output is not actually used yet
 generated_protocols = [
-  [ 'xdg-decoration', 'v1', 'unstable' ],
+  [ 'xdg-decoration', 'v1' ],
   [ 'xdg-output', 'v1' ],
   [ 'xdg-shell', 'stable' ]
 ]

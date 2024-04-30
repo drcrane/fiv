@@ -31,9 +31,64 @@ struct wlif_ptr_element {
 	void * element;
 };
 
+struct wlif_output_element {
+	struct wl_list element_header;
+	struct wl_output * wl_output;
+	struct zxdg_output_v1 * xdg_output;
+	struct {
+		int32_t x;
+		int32_t y;
+		int32_t width;
+		int32_t height;
+	} logical;
+	char * name;
+	char * description;
+};
+
 pixman_image_t * icon;
 
 int wlif_adjustbuffer(struct wlif_window_context * ctx);
+
+static void wl_output_handle_geometry(void * data, struct wl_output * wl_output, int32_t x, int32_t y,
+		int32_t physical_width, int32_t physical_height, int32_t subpixel, const char * make,
+		const char * model, int32_t output_transform) {
+	struct wlif_output_element * wlif_output_element = (struct wlif_output_element *)data;
+	wlif_output_element->logical.x = x;
+	wlif_output_element->logical.y = y;
+}
+
+static void wl_output_handle_mode(void * data, struct wl_output * wl_output, uint32_t flags, int32_t width, int32_t height,
+		int32_t refresh) {
+	struct wlif_output_element * wlif_output_element = (struct wlif_output_element *)data;
+	wlif_output_element->logical.width = width;
+	wlif_output_element->logical.height = height;
+}
+
+static void wl_output_handle_done(void * data, struct wl_output * wl_output) {
+	struct wlif_output_element * wlif_output_element = (struct wlif_output_element *)data;
+	fprintf(stdout, "Output %s : x %d y %d: %dx%d\n", wlif_output_element->name, wlif_output_element->logical.x, wlif_output_element->logical.y, wlif_output_element->logical.width, wlif_output_element->logical.height);
+}
+
+static void wl_output_handle_scale(void * data, struct wl_output * wl_output, int32_t scale) {
+	//
+}
+
+static void wl_output_handle_name(void * data, struct wl_output * wl_output, const char * name) {
+	struct wlif_output_element * wlif_output_element = (struct wlif_output_element *)data;
+	wlif_output_element->name = strdup(name);
+}
+
+static void wl_output_handle_description(void * data, struct wl_output * wl_output, const char * description) {
+}
+
+static const struct wl_output_listener wl_output_listener = {
+	.geometry = wl_output_handle_geometry,
+	.mode = wl_output_handle_mode,
+	.done = wl_output_handle_done,
+	.scale = wl_output_handle_scale,
+	.name = wl_output_handle_name,
+	.description = wl_output_handle_description,
+};
 
 void registry_global_handler(void * data, struct wl_registry * registry, uint32_t name, const char * interface, uint32_t version) {
 	fprintf(stdout, "interface: '%s', version: %u, name: %u\n", interface, version, name);
@@ -51,6 +106,12 @@ void registry_global_handler(void * data, struct wl_registry * registry, uint32_
 		wl_list_insert(&global_ctx->seats, &ele->element_header);
 	}
 	if (strcmp(interface, wl_output_interface.name) == 0) {
+		struct wlif_output_element * wlif_output_element = malloc(sizeof(struct wlif_output_element));
+		memset(wlif_output_element, 0, sizeof(struct wlif_output_element));
+		wlif_output_element->wl_output = wl_registry_bind(registry, name, &wl_output_interface, 4);
+		wl_list_insert(&global_ctx->outputs, &wlif_output_element->element_header);
+		fprintf(stdout, "Added an output proxy (%d)\n", wl_proxy_get_id((struct wl_proxy *)wlif_output_element->wl_output));
+		wl_output_add_listener(wlif_output_element->wl_output, &wl_output_listener, wlif_output_element);
 	}
 	if (strcmp(interface, xdg_wm_base_interface.name) == 0) {
 		global_ctx->xdg_wm_base = wl_registry_bind(registry, name, &xdg_wm_base_interface, 2);
@@ -425,6 +486,7 @@ int wlif_initialise() {
 	window_ctx->buffer_fd = -1;
 	window_ctx->redraw = NULL;
 	wl_list_init(&global_ctx->seats);
+	wl_list_init(&global_ctx->outputs);
 	global_ctx->display = wl_display_connect(NULL);
 	if (!global_ctx->display) {
 		fprintf(stderr, "wl_display_connect() failed\n");
