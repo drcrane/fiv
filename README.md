@@ -36,3 +36,5 @@ https://wayland.app/protocols/xdg-shell
 https://github.com/oasislinux/oasis/blob/master/pkg/st/patch/0001-Port-to-wayland-using-wld.patch
 https://nilsbrause.github.io/waylandpp_docs/classwayland_1_1xdg__wm__base__t.html
 
+[Wanna do some client-side decorations?](https://github.com/christianrauch/wayland_window_decoration_example)
+

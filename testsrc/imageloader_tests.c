@@ -80,16 +80,16 @@ const char * imageloader_dump_pixels_test() {
 	src_buf = pixman_image_get_data(src_img);
 	mu_assert(src_buf != NULL, "trying to get buffer");
 	fprintf(stdout, "=== BEFORE OVERLAYING IMAGE ===\n");
-	fprintf(stdout, "DST PIXEL AT 1x4   %08x\n", dst_buf[32*4+1]);
+	fprintf(stdout, "DST PIXEL AT 1x4   %08x (%08x)\n", dst_buf[32*4+1], premultiply(dst_buf[32*4+1]));
 	//src_buf[32*4+1] = premultiply(src_buf[32*4+1]);
 	premultiply_buf(src_buf, 32*32);
 	rc = imageloader_render(dst_img, 0, 0, src_img,
 			imageloader_render_fittype_actual);
 	mu_assert(rc == 0, "imageloader_render failed to render the image");
 	/* A5BBC0BB AARRGGBB */
-	fprintf(stdout, "SRC PIXEL AT 1x4   %08x\n", src_buf[32*4+1]);
+	fprintf(stdout, "SRC PIXEL AT 1x4   %08x (%08x)\n", src_buf[32*4+1], premultiply(src_buf[32*4+1]));
 	fprintf(stdout, "=== AFTER OVERLAYING IMAGE ===\n");
-	fprintf(stdout, "DST PIXEL AT 1x4   %08x\n", dst_buf[32*4+1]);
+	fprintf(stdout, "DST PIXEL AT 1x4   %08x (%08x)\n", dst_buf[32*4+1], premultiply(dst_buf[32*4+1]));
 	imgterm_dump(dst_img);
 	pixman_image_unref(src_img);
 	pixman_image_unref(dst_img);
