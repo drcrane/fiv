@@ -42,10 +42,13 @@ enum WLIF_WINDOW_REDRAW_REASON {
 struct wlif_window_context {
 	int width, height, stride, size, curr_size;
 	int buffer_fd;
-	int configured;
 	char * buffer_a;
 	char * buffer_b;
 	int (* redraw)(pixman_image_t *, enum WLIF_WINDOW_REDRAW_REASON reason);
+	int request_fullscreen;
+	int wl_surface_configured;
+	int xdg_surface_configured;
+	int xdg_toplevel_configured;
 
 	struct wl_surface * wl_surface;
 	struct wl_buffer * wl_buffer_a;
@@ -65,6 +68,7 @@ void registry_global_handler(void * data, struct wl_registry * registry, uint32_
 void registry_global_remove_handler(void * data, struct wl_registry * registry, uint32_t name);
 
 int wlif_initialise();
+int wlif_process_pending(int waitfor_msecs);
 int wlif_dispose();
 
 #endif /* WLIF_H */

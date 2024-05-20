@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <time.h>
+#include <poll.h>
 //#include <assert.h>
 #include <linux/input-event-codes.h>
 
@@ -128,9 +129,9 @@ void registry_global_remove_handler(void * data, struct wl_registry * registry, 
 void xdg_surface_configure_handler(void * data, struct xdg_surface * xdg_surface, uint32_t serial) {
 	struct wlif_window_context * ctx = (struct wlif_window_context *)data;
 	xdg_surface_ack_configure(xdg_surface, serial);
-	if (ctx->configured == 0) {
+	if (ctx->xdg_surface_configured == 0) {
 		wlif_adjustbuffer(ctx);
-		ctx->configured = 1;
+		ctx->xdg_surface_configured = 1;
 	}
 	fprintf(stdout, "xdg_surface_configure_ack\n");
 }
@@ -196,6 +197,8 @@ void xdg_toplevel_configure_handler(void * data, struct xdg_toplevel * xdg_tople
 		wlif_adjustbuffer(window_ctx);
 		//wl_surface_damage_buffer(window_ctx->wl_surface, 0, 0, INT32_MAX, INT32_MAX);
 	}
+
+	window_ctx->xdg_toplevel_configured = 1;
 }
 
 void xdg_toplevel_close_handler(void * data, struct xdg_toplevel * xdg_toplevel) {
@@ -599,6 +602,50 @@ int wlif_initialise() {
 	global_ctx->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 
 	return 0;
+}
+
+int wlif_process_pending(int waitfor_msecs) {
+	// This is effectively a re-implementation of wl_display_dispatch_queue
+	int ret;
+	int fd = wl_display_get_fd(global_ctx->display);
+	struct pollfd fds[1];
+
+	if (wl_display_prepare_read(global_ctx->display) == -1) {
+		return wl_display_dispatch_pending(global_ctx->display);
+	}
+
+	fds[0].fd = fd;
+	fds[0].events = POLLOUT;
+	while (true) {
+		ret = wl_display_flush(global_ctx->display);
+
+		if (ret != -1 || errno != EAGAIN) {
+			break;
+		}
+
+		if (poll(fds, 1, -1) <= 0) {
+			wl_display_cancel_read(global_ctx->display);
+			return -1;
+		}
+	}
+
+	if (ret < 0 && errno != EPIPE) {
+		wl_display_cancel_read(global_ctx->display);
+		return -1;
+	}
+
+	fds[0].events = POLLIN;
+	if (poll(fds, 1, waitfor_msecs) <= 0) {
+		// This is a timeout, does not matter
+		wl_display_cancel_read(global_ctx->display);
+		return 0;
+	}
+
+	if (wl_display_read_events(global_ctx->display) == -1) {
+		return -1;
+	}
+
+	return wl_display_dispatch_pending(global_ctx->display);
 }
 
 int wlif_dispose() {
