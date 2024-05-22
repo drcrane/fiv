@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
 	int keep_going = 1;
 	do {
 		res = wlif_process_pending(1000);
-		fprintf(stdout, "%d\n", res);
+		//fprintf(stdout, "Process Pending : %d\n", res);
 		if (window_ctx->request_fullscreen && window_ctx->xdg_toplevel_configured) {
 			xdg_toplevel_set_fullscreen(window_ctx->xdg_toplevel, NULL);
 			fprintf(stdout, "Setting fullscreen...\n");

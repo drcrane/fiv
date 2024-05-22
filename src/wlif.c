@@ -286,11 +286,11 @@ int wlif_adjustbuffer(struct wlif_window_context * ctx) {
 // **** POINTER HANDLING
 
 static void wl_pointer_enter_handler(void * data, struct wl_pointer * wl_pointer, uint32_t serial, struct wl_surface * wl_surface, wl_fixed_t surface_x, wl_fixed_t surface_y) {
-	fprintf(stdout, "pointer_enter\n");
+	//fprintf(stdout, "pointer_enter\n");
 }
 
 static void wl_pointer_leave_handler(void * data, struct wl_pointer * wl_pointer, uint32_t serial, struct wl_surface * wl_surface) {
-	fprintf(stdout, "pointer_leave\n");
+	//fprintf(stdout, "pointer_leave\n");
 }
 
 static void wl_pointer_motion_handler(void * data, struct wl_pointer * wl_pointer, uint32_t time, wl_fixed_t surface_x, wl_fixed_t surface_y) {
@@ -306,7 +306,7 @@ static void wl_pointer_axis_handler(void * data, struct wl_pointer * wl_pointer,
 }
 
 static void wl_pointer_frame_handler(void * data, struct wl_pointer * wl_pointer) {
-	fprintf(stdout, "pointer_frame\n");
+	//fprintf(stdout, "pointer_frame\n");
 }
 
 static void wl_pointer_axis_source_handler(void * data, struct wl_pointer * wl_pointer, uint32_t axis_source) {
