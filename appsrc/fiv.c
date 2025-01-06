@@ -31,7 +31,9 @@ int main(int argc, char *argv[]) {
 		window_ctx->request_fullscreen = 1;
 	}
 
+	//wp_presentation_add_listener(listener, handler_struct, data);
 	wl_surface_commit(window_ctx->wl_surface);
+	wlif_presentation_time(window_ctx);
 	//wl_display_roundtrip(global_ctx->display);
 	//wl_surface_attach(window_ctx->wl_surface, window_ctx->wl_buffer_a, 0, 0);
 	//wl_surface_commit(window_ctx->wl_surface);

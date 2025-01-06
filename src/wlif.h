@@ -7,6 +7,7 @@
 #include <wayland-client.h>
 #include "xdg-shell-client-protocol.h"
 #include "xdg-decoration-unstable-v1-client-protocol.h"
+#include "presentation-time-client-protocol.h"
 #include <xkbcommon/xkbcommon.h>
 
 struct wlif_global_context {
@@ -19,6 +20,7 @@ struct wlif_global_context {
 	struct xdg_wm_base * xdg_wm_base;
 	struct xdg_wm_base_listener xdg_wm_base_listener;
 	struct zxdg_decoration_manager_v1 * zxdg_decoration_manager_v1;
+	struct wp_presentation * wp_presentation;
 	struct wl_list seats;
 	struct wl_seat_listener seat_listener;
 	struct wl_pointer * pointer;
@@ -63,11 +65,12 @@ struct wlif_window_context {
 extern struct wlif_global_context * global_ctx;
 extern struct wlif_window_context * window_ctx;
 
+/* For now these are private
 void registry_global_handler(void * data, struct wl_registry * registry, uint32_t name, const char * interface, uint32_t version);
-
-void registry_global_remove_handler(void * data, struct wl_registry * registry, uint32_t name);
+void registry_global_remove_handler(void * data, struct wl_registry * registry, uint32_t name); */
 
 int wlif_initialise();
+int wlif_presentation_time(struct wlif_window_context * window_ctx);
 int wlif_process_pending(int waitfor_msecs);
 int wlif_dispose();
 

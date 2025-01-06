@@ -91,7 +91,7 @@ static const struct wl_output_listener wl_output_listener = {
 	.description = wl_output_handle_description,
 };
 
-void registry_global_handler(void * data, struct wl_registry * registry, uint32_t name, const char * interface, uint32_t version) {
+static void registry_global_handler(void * data, struct wl_registry * registry, uint32_t name, const char * interface, uint32_t version) {
 	fprintf(stdout, "interface: '%s', version: %u, name: %u\n", interface, version, name);
 	if (strcmp(interface, wl_compositor_interface.name) == 0) {
 		global_ctx->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 3);
@@ -120,13 +120,16 @@ void registry_global_handler(void * data, struct wl_registry * registry, uint32_
 	if (strcmp(interface, zxdg_decoration_manager_v1_interface.name) == 0) {
 		global_ctx->zxdg_decoration_manager_v1 = wl_registry_bind(registry, name, &zxdg_decoration_manager_v1_interface, 1);
 	}
+	if (strcmp(interface, wp_presentation_interface.name) == 0) {
+		global_ctx->wp_presentation = wl_registry_bind(registry, name, &wp_presentation_interface, 1);
+	}
 }
 
-void registry_global_remove_handler(void * data, struct wl_registry * registry, uint32_t name) {
+static void registry_global_remove_handler(void * data, struct wl_registry * registry, uint32_t name) {
 	fprintf(stdout, "removed: %u\n", name);
 }
 
-void xdg_surface_configure_handler(void * data, struct xdg_surface * xdg_surface, uint32_t serial) {
+static void xdg_surface_configure_handler(void * data, struct xdg_surface * xdg_surface, uint32_t serial) {
 	struct wlif_window_context * ctx = (struct wlif_window_context *)data;
 	xdg_surface_ack_configure(xdg_surface, serial);
 	if (ctx->xdg_surface_configured == 0) {
@@ -136,7 +139,7 @@ void xdg_surface_configure_handler(void * data, struct xdg_surface * xdg_surface
 	fprintf(stdout, "xdg_surface_configure_ack\n");
 }
 
-void xdg_toplevel_configure_handler(void * data, struct xdg_toplevel * xdg_toplevel, int32_t width, int32_t height, struct wl_array * states) {
+static void xdg_toplevel_configure_handler(void * data, struct xdg_toplevel * xdg_toplevel, int32_t width, int32_t height, struct wl_array * states) {
 	bool is_activated = false;
 	bool is_fullscreen = false;
 	bool is_maximised = false;
@@ -201,12 +204,12 @@ void xdg_toplevel_configure_handler(void * data, struct xdg_toplevel * xdg_tople
 	window_ctx->xdg_toplevel_configured = 1;
 }
 
-void xdg_toplevel_close_handler(void * data, struct xdg_toplevel * xdg_toplevel) {
+static void xdg_toplevel_close_handler(void * data, struct xdg_toplevel * xdg_toplevel) {
 	printf("toplevel_close\n");
 	global_ctx->terminate = 1;
 }
 
-void xdg_wm_base_ping_handler(void * data, struct xdg_wm_base * xdg_wm_base, uint32_t serial) {
+static void xdg_wm_base_ping_handler(void * data, struct xdg_wm_base * xdg_wm_base, uint32_t serial) {
 	xdg_wm_base_pong(xdg_wm_base, serial);
 	printf("xdg_wm_base_ping-pong\n");
 }
@@ -272,6 +275,7 @@ int wlif_adjustbuffer(struct wlif_window_context * ctx) {
 	struct wl_buffer * wl_buffer = wl_shm_pool_create_buffer(global_ctx->shm_pool, 0, ctx->width, ctx->height, ctx->stride, WL_SHM_FORMAT_XRGB8888);
 	wl_buffer_add_listener(wl_buffer, &wl_buffer_listener, NULL);
 	wl_surface_attach(ctx->wl_surface, wl_buffer, 0, 0);
+	wlif_presentation_time(ctx);
 	wl_surface_commit(ctx->wl_surface);
 	if (ctx->wl_buffer_a == NULL) {
 		ctx->wl_buffer_a = wl_buffer;
@@ -287,6 +291,8 @@ int wlif_adjustbuffer(struct wlif_window_context * ctx) {
 
 static void wl_pointer_enter_handler(void * data, struct wl_pointer * wl_pointer, uint32_t serial, struct wl_surface * wl_surface, wl_fixed_t surface_x, wl_fixed_t surface_y) {
 	//fprintf(stdout, "pointer_enter\n");
+	// This line will hide the cursor NULL can be a surface and presumably can be animated!
+	//wl_pointer_set_cursor(wl_pointer, serial, NULL, 0, 0);
 }
 
 static void wl_pointer_leave_handler(void * data, struct wl_pointer * wl_pointer, uint32_t serial, struct wl_surface * wl_surface) {
@@ -424,7 +430,7 @@ static void wl_touch_orientation_handler(void * data, struct wl_touch * wl_touch
 
 }
 
-void wl_seat_capabilities_handler(void * data, struct wl_seat * wl_seat, uint32_t capabilities) {
+static void wl_seat_capabilities_handler(void * data, struct wl_seat * wl_seat, uint32_t capabilities) {
 	// WL_SEAT_CAPABILITY_POINTER WL_SEAT_CAPABILITY_KEYBOARD WL_SEAT_CAPABILITY_TOUCH
 	bool have_pointer = capabilities & WL_SEAT_CAPABILITY_POINTER;
 	if (have_pointer && global_ctx->pointer == NULL) {
@@ -475,9 +481,15 @@ void wl_seat_capabilities_handler(void * data, struct wl_seat * wl_seat, uint32_
 	}
 }
 
-void wl_seat_name_handler(void * data, struct wl_seat * wl_seat, const char * name) {
+static void wl_seat_name_handler(void * data, struct wl_seat * wl_seat, const char * name) {
 	fprintf(stdout, "seat name: %s\n", name);
 }
+
+static void wp_presentation_clock_id_handler(void * data, struct wp_presentation * presentation, uint32_t clock_id) {
+	fprintf(stdout, "wp_presentation_time_clock_id: %d\n", clock_id);
+}
+
+static const struct wp_presentation_listener wp_presentation_listener = { wp_presentation_clock_id_handler };
 
 int wlif_initialise() {
 	int rc = imageloader_load(&icon, "testdata/image-x-generic.png");
@@ -510,6 +522,7 @@ int wlif_initialise() {
 	fprintf(stdout, "shm %p\n", (void *)global_ctx->shm);
 	fprintf(stdout, "xdg_wm_base %p\n", (void *)global_ctx->xdg_wm_base);
 	fprintf(stdout, "zxdg_decoration_manager_v1 %p\n", (void *)global_ctx->zxdg_decoration_manager_v1);
+	fprintf(stdout, "wp_presentation %p\n", (void *)global_ctx->wp_presentation);
 	struct wlif_ptr_element * ele;
 	struct wl_seat * seat = NULL;
 	wl_list_for_each (ele, &global_ctx->seats, element_header) {
@@ -597,10 +610,50 @@ int wlif_initialise() {
 		}
 	}
 
+	if (global_ctx->wp_presentation != NULL) {
+		wp_presentation_add_listener(global_ctx->wp_presentation, &wp_presentation_listener, NULL);
+	}
+
 	//xdg_surface_set_window_geometry(window_ctx->xdg_surface, 0, 0, 200, 200);
 
 	global_ctx->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 
+	return 0;
+}
+
+static void wp_presentation_feedback_sync_output_handler(void * data, struct wp_presentation_feedback * wp_presentation_feedback, struct wl_output * output) {
+	fprintf(stdout, "sync_output\n");
+}
+
+static void wp_presentation_feedback_presented_handler(void * data, struct wp_presentation_feedback * wp_presentation_feedback, uint32_t tv_sec_hi, uint32_t tv_sec_lo, uint32_t tv_nsec, uint32_t refresh, uint32_t seq_hi, uint32_t seq_lo, uint32_t flags) {
+	struct timespec time_now;
+	int64_t seconds;
+	clock_gettime(CLOCK_MONOTONIC, &time_now);
+	seconds = (((int64_t)tv_sec_hi) << 32) | tv_sec_lo;
+	fprintf(stdout, "C: %ld %d refresh %d %x\n", seconds, tv_nsec, refresh, flags);
+	fprintf(stdout, "N: %ld %ld\n", time_now.tv_sec, time_now.tv_nsec);
+	int64_t delta = time_now.tv_nsec - tv_nsec;
+	if (delta < 0) {
+		delta = delta + (1000000000 * (time_now.tv_sec - seconds));
+	}
+	fprintf(stdout, "delta %d\n", (int32_t)delta);
+	//int clock_gettime(clockid_t clockid, struct timespec *tp);
+}
+
+static void wp_presentation_feedback_discarded_handler(void * data, struct wp_presentation_feedback * wp_presentation_feedback) {
+	fprintf(stdout, "discarded\n");
+}
+
+struct wp_presentation_feedback_listener wp_presentation_feedback_listener = {
+	wp_presentation_feedback_sync_output_handler,
+	wp_presentation_feedback_presented_handler,
+	wp_presentation_feedback_discarded_handler
+};
+
+int wlif_presentation_time(struct wlif_window_context * window_ctx) {
+	struct wp_presentation_feedback * wp_presentation_feedback_;
+	wp_presentation_feedback_ = wp_presentation_feedback(global_ctx->wp_presentation, window_ctx->wl_surface);
+	wp_presentation_feedback_add_listener(wp_presentation_feedback_, &wp_presentation_feedback_listener, NULL);
 	return 0;
 }
 

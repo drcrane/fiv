@@ -13,7 +13,7 @@ COBJECTS=$(patsubst ${SRCDIR}%.c,${OBJDIR}%.o,${CSOURCES})
 GENSOURCES=$(wildcard gensrc/*.c)
 GENOBJECTS=$(patsubst gensrc/%.c,${OBJDIR}%o,${GENSOURCES})
 DEPS=$(wildcard $(OBJDIR)*.d)
-OBJECTS=${COBJECTS} obj/xdg-shell-protocol.o obj/xdg-decoration-unstable-v1-protocol.o
+OBJECTS=${COBJECTS} obj/xdg-shell-protocol.o obj/xdg-decoration-unstable-v1-protocol.o obj/presentation-time-protocol.o
 LDFLAGS=-Llib/ -l${LIBNAME} `pkg-config --libs pixman-1 freetype2 xkbcommon wayland-client`
 
 all: appbin/fiv testbin/imageloader_tests
@@ -48,10 +48,19 @@ gensrc/xdg-decoration-unstable-v1-protocol.c: ${WAYLAND_PROTOCOLS}unstable/xdg-d
 geninc/xdg-decoration-unstable-v1-client-protocol.h: ${WAYLAND_PROTOCOLS}unstable/xdg-decoration/xdg-decoration-unstable-v1.xml | geninc/
 	wayland-scanner client-header $< $@
 
-${OBJDIR}%.o: gensrc/%.c geninc/xdg-shell-client-protocol.h geninc/xdg-decoration-unstable-v1-client-protocol.h | ${OBJDIR}
+gensrc/presentation-time-protocol.c: ${WAYLAND_PROTOCOLS}stable/presentation-time/presentation-time.xml | gensrc/
+	wayland-scanner private-code $< $@
+
+geninc/presentation-time-client-protocol.h: ${WAYLAND_PROTOCOLS}stable/presentation-time/presentation-time.xml | geninc/
+	wayland-scanner client-header $< $@
+
+${OBJDIR}%.o: gensrc/%.c geninc/xdg-shell-client-protocol.h geninc/xdg-decoration-unstable-v1-client-protocol.h geninc/presentation-time-client-protocol.h | ${OBJDIR}
 	${CC} -c ${CFLAGS} -o $@ $<
 
-${OBJDIR}%.o: ${SRCDIR}%.c geninc/xdg-shell-client-protocol.h gensrc/xdg-shell-protocol.c geninc/xdg-decoration-unstable-v1-client-protocol.h gensrc/xdg-decoration-unstable-v1-protocol.c | ${OBJDIR}
+${OBJDIR}%.o: ${SRCDIR}%.c | ${OBJDIR}
+	${CC} -c ${CFLAGS} -o $@ $<
+
+${OBJDIR}%.o: geninc/xdg-shell-client-protocol.h gensrc/xdg-shell-protocol.c geninc/xdg-decoration-unstable-v1-client-protocol.h gensrc/xdg-decoration-unstable-v1-protocol.c geninc/presentation-time-client-protocol.h gensrc/presentation-time-protocol.c | ${OBJDIR}
 	${CC} -c ${CFLAGS} -o $@ $<
 
 -include $(DEPS)

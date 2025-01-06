@@ -12,7 +12,8 @@ wl_protocol_dep_dir_base = wl_protocol_dep.get_variable('pkgdatadir')
 generated_protocols = [
   [ 'xdg-decoration', 'v1' ],
   [ 'xdg-output', 'v1' ],
-  [ 'xdg-shell', 'stable' ]
+  [ 'xdg-shell', 'stable' ],
+  [ 'presentation-time', 'stable' ]
 ]
 
 generated_protocols_sources = []
