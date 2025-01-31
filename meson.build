@@ -60,7 +60,7 @@ libfiv_sources = files(
 'src/widgets.c',
 )
 libfiv_include_dirs = include_directories('include', 'src')
-libfiv_lib = static_library('green', libfiv_sources + generated_protocols_sources, dependencies : [ wayland_client_dep, pixman_dep, xkbcommon_dep ], include_directories : libfiv_include_dirs, install : false)
+libfiv_lib = static_library('fiv', libfiv_sources + generated_protocols_sources, dependencies : [ wayland_client_dep, pixman_dep, xkbcommon_dep ], include_directories : libfiv_include_dirs, install : false)
 libfiv_dep = declare_dependency(include_directories : libfiv_include_dirs, link_with : libfiv_lib)
 
 

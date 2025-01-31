@@ -20,6 +20,10 @@ int main(int argc, char *argv[]) {
 
 	res = wlif_initialise();
 	fprintf(stdout, "wlif_initialise: %i\n", res);
+	if (res != 0) {
+		res = 127;
+		goto error;
+	}
 
 	for (int i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--fullscreen") == 0) {
